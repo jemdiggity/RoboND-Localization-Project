@@ -1,37 +1,159 @@
 <?xml version="1.0"?>
-
+<!-- inspired by https://github.com/ros/urdf_tutorial/tree/master/urdf -->
 <robot name="my_bot" xmlns:xacro="http://www.ros.org/wiki/xacro">
   <xacro:include filename="$(find udacity_bot)/urdf/my_bot.gazebo" />
   <link name="robot_footprint"></link>
 
+  <xacro:property name="width" value="0.2" />
+  <xacro:property name="leglen" value="0.6" />
+  <xacro:property name="polelen" value="0.2" />
+  <xacro:property name="bodylen" value="0.25" />
+  <xacro:property name="baselen" value="0.4" />
+  <xacro:property name="wheeldiam" value="0.07" />
+  <xacro:property name="front_wheel_offset" value="0.15" />
+  <xacro:property name="pi" value="3.1415" />
+  <xacro:property name="tilt" value="0.52359877559" />
+  <xacro:property name="cos_tilt" value="0.86602540378" />
+  <xacro:property name="sin_tilt" value="0.5" />
+
+  <material name="Bright Green">
+    <color rgba="0.4 1.0 0.2 1.0"/>
+  </material>
+
+  <material name="Cyan">
+    <color rgba="0 1.0 1.0 1.0"/>
+  </material>
+
+  <xacro:macro name="default_inertial" params="mass">
+    <inertial>
+      <mass value="${mass}" />
+      <inertia ixx="1.0" ixy="0.0" ixz="0.0" iyy="1.0" iyz="0.0" izz="1.0" />
+    </inertial>
+  </xacro:macro>
+
   <joint name="robot_footprint_joint" type="fixed">
-    <origin xyz="0 0 0" rpy="0 0 0" />
+    <origin xyz="0 0 0" rpy="0 ${-1*tilt} 0" />
     <parent link="robot_footprint"/>
     <child link="chassis" />
   </joint>
 
-  <joint type="continuous" name="left_wheel_hinge">
-    <origin xyz="0 0.15 0" rpy="0 0 0"/>
-    <child link="left_wheel"/>
-    <parent link="chassis"/>
-    <axis xyz="0 1 0" rpy="0 0 0"/>
-    <limit effort="10000" velocity="1000"/>
-    <dynamics damping="1.0" friction="1.0"/>
-  </joint>
+  <xacro:macro name="wheel" params="prefix reflect">
+    <joint type="continuous" name="${prefix}_wheel_hinge">
+      <origin xyz="${-0.5 * width} ${reflect * width} ${-0.5 * bodylen}" rpy="0 0 0"/>
+      <child link="${prefix}_wheel"/>
+      <parent link="chassis"/>
+      <axis xyz="0 1 0" rpy="0 0 0"/>
+      <limit effort="10000" velocity="1000"/>
+      <dynamics damping="1.0" friction="1.0"/>
+    </joint>
+    <link name="${prefix}_wheel">
+      <inertial>
+        <mass value="5.0"/>
+        <origin xyz="0.0 0 0" rpy="0 ${pi/2} ${pi/2}"/>
+        <inertia
+            ixx="0.1" ixy="0" ixz="0"
+            iyy="0.1" iyz="0"
+            izz="0.1"
+        />
+      </inertial>
+      <collision name="collision">
+        <origin xyz="0.0 0 0" rpy="0 ${pi/2} ${pi/2}"/>
+        <geometry>
+          <cylinder radius="${wheeldiam/2}" length="${wheeldiam/4}"/>
+        </geometry>
+      </collision>
+      <visual name="visual">
+        <origin xyz="0.0 0 0" rpy="0 ${pi/2} ${pi/2}"/>
+        <geometry>
+          <cylinder radius="${wheeldiam/2}" length="${wheeldiam/4}"/>
+        </geometry>
+        <material name="Cyan"/>
+      </visual>
+    </link>
+  </xacro:macro>
+
+  <xacro:wheel prefix="right" reflect="-1" />
+  <xacro:wheel prefix="left" reflect="1" />
   
-  <joint type="continuous" name="right_wheel_hinge">
-    <origin xyz="0 -0.15 0" rpy="0 0 0"/>
-    <child link="right_wheel"/>
+  <link name="chassis">
+    <pose>0 0 0.1 0 0 0</pose>
+
+    <inertial>
+      <mass value="15.0"/>
+      <origin xyz="0.0 0 0" rpy="0 0 0"/>
+      <inertia
+          ixx="0.1" ixy="0" ixz="0"
+          iyy="0.1" iyz="0"
+          izz="0.1"
+      />
+    </inertial>
+
+    <collision name="collision">
+      <origin xyz="0 0 0" rpy="0 0 0"/> 
+      <geometry>
+        <cylinder radius="${width / 2}" length="${bodylen}"/>
+      </geometry>
+    </collision>
+
+    <visual name="chassis_visual">
+      <origin xyz="0 0 0" rpy="0 0 0"/>
+      <geometry>
+        <cylinder radius="${width / 2}" length="${bodylen}"/>
+      </geometry>
+      <material name="Bright Green"/>
+    </visual>
+  </link>
+
+  <xacro:macro name="caster" params="prefix reflect">
+    <joint type="fixed" name="${prefix}_caster_joint">
+      <origin xyz="${front_wheel_offset * reflect} 0 ${-bodylen/2 - 0.015}" rpy=" 0 0 0"/>
+      <child link="${prefix}_caster"/>
+      <parent link="robot_footprint"/>
+    </joint>
+    <link name="${prefix}_caster">
+    <collision name="back_caster_collision">
+      <origin xyz="0 0 0" rpy=" 0 0 0"/>
+      <geometry>
+        <sphere radius="0.0499"/>
+      </geometry>
+    </collision>
+    <visual name="back_caster_visual">
+      <origin xyz="0 0 0" rpy=" 0 0 0"/>
+      <geometry>
+        <sphere radius="0.05"/>
+      </geometry>
+    </visual>
+    </link>
+  </xacro:macro>
+  <xacro:caster prefix="front" reflect="1" />
+  <xacro:caster prefix="back" reflect="-1" />
+
+  <joint type="fixed" name="head_joint">
+    <origin xyz="0 0 ${bodylen/2}" rpy="0 0 0"/>
+    <child link="head"/>
     <parent link="chassis"/>
-    <axis xyz="0 1 0" rpy="0 0 0"/>
-    <limit effort="10000" velocity="1000"/>
-    <dynamics damping="1.0" friction="1.0"/>
   </joint>
 
+
+  <link name="head">
+    <visual>
+      <geometry>
+        <sphere radius="${width/2}"/>
+      </geometry>
+      <material name="Cyan"/>
+    </visual>
+    <collision>
+      <geometry>
+        <sphere radius="${width/2}"/>
+      </geometry>
+    </collision>
+    <xacro:default_inertial mass="2"/>
+  </link>
+
   <joint type="fixed" name="camera_joint">
-    <origin xyz="0.2 0 0" rpy="0 0 0"/>
+    <origin xyz="${width/2} 0 0" rpy="0 0 0"/>
     <child link="camera"/>
-    <parent link="chassis"/>
+    <parent link="head"/>
   </joint>
 
   <link name="camera">
@@ -59,9 +181,9 @@
   </link>
 
   <joint type="fixed" name="hokuyo_joint">
-    <origin xyz="0.15 0 0.1" rpy="0 0 0"/>
+    <origin xyz="0 0 ${bodylen/2 + width/2}" rpy="0 0 0"/>
     <child link="hokuyo"/>
-    <parent link="chassis"/>
+    <parent link="robot_footprint"/>
   </joint>
 
   <link name="hokuyo">
@@ -88,118 +210,5 @@
     </visual>
   </link>
 
-  <link name="left_wheel">
-    <inertial>
-      <mass value="5.0"/>
-      <origin xyz="0.0 0 0" rpy="0 1.5707 1.5707"/>
-      <inertia
-          ixx="0.1" ixy="0" ixz="0"
-          iyy="0.1" iyz="0"
-          izz="0.1"
-      />
-    </inertial>
-    <collision name="collision">
-      <origin xyz="0.0 0 0" rpy="0 1.5707 1.5707"/>
-      <geometry>
-        <cylinder radius="0.1" length="0.05"/>
-      </geometry>
-    </collision>
-    <visual name="visual">
-      <origin xyz="0.0 0 0" rpy="0 1.5707 1.5707"/>
-      <geometry>
-        <cylinder radius="0.1" length="0.05"/>
-      </geometry>
-      <material name="Cyan">
-        <color rgba="0 1.0 1.0 1.0"/>
-      </material>
-     </visual>
-  </link>
-
-  <link name="right_wheel">
-    <inertial>
-      <mass value="5.0"/>
-      <origin xyz="0.0 0 0" rpy="0 1.5707 1.5707"/>
-      <inertia
-          ixx="0.1" ixy="0" ixz="0"
-          iyy="0.1" iyz="0"
-          izz="0.1"
-      />
-    </inertial>
-    <collision name="collision">
-      <origin xyz="0.0 0 0" rpy="0 1.5707 1.5707"/>
-      <geometry>
-        <cylinder radius="0.1" length="0.05"/>
-      </geometry>
-    </collision>
-    <visual name="visual">
-      <origin xyz="0.0 0 0" rpy="0 1.5707 1.5707"/>
-      <geometry>
-        <cylinder radius="0.1" length="0.05"/>
-      </geometry>
-      <material name="Cyan">
-        <color rgba="0 1.0 1.0 1.0"/>
-      </material>
-    </visual>
-  </link>
-
-  <link name="chassis">
-    <pose>0 0 0.1 0 0 0</pose>
-
-    <inertial>
-      <mass value="15.0"/>
-      <origin xyz="0.0 0 0" rpy=" 0 0 0"/>
-      <inertia
-          ixx="0.1" ixy="0" ixz="0"
-          iyy="0.1" iyz="0"
-          izz="0.1"
-      />
-    </inertial>
-
-    <collision name="collision">
-      <origin xyz="0 0 0" rpy=" 0 0 0"/> 
-      <geometry>
-        <box size=".4 .2 .1"/>
-      </geometry>
-    </collision>
-
-    <visual name="chassis_visual">
-      <origin xyz="0 0 0" rpy=" 0 0 0"/>
-      <geometry>
-        <box size=".4 .2 .1"/>
-      </geometry>
-      <material name="Bright Green">
-        <color rgba="0.4 1.0 0.2 1.0"/>
-      </material>
-    </visual>
-
-    <collision name="back_caster_collision">
-      <origin xyz="-0.15 0 -0.05" rpy=" 0 0 0"/>
-      <geometry>
-        <sphere radius="0.0499"/>
-      </geometry>
-    </collision>
-
-    <visual name="back_caster_visual">
-      <origin xyz="-0.15 0 -0.05" rpy=" 0 0 0"/>
-      <geometry>
-        <sphere radius="0.05"/>
-      </geometry>
-    </visual>
-
-    <collision name="front_caster_collision">
-      <origin xyz="0.15 0 -0.05" rpy=" 0 0 0"/>
-      <geometry>
-        <sphere radius="0.0499"/>
-      </geometry>
-    </collision>
-
-    <visual name="front_caster_visual">
-      <origin xyz="0.15 0 -0.05" rpy=" 0 0 0"/>
-      <geometry>
-        <sphere radius="0.05"/>
-      </geometry>
-    </visual>
-
-  </link>
 
 </robot>
