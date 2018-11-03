@@ -14,9 +14,9 @@
     <param name="global_frame_id" value="map"/>
     <param name="transform_tolerance" value="1.0"/>
     <param name="update_min_d" value="0.1"/>
-    <param name="update_min_a" value="0.2"/>
-    <param name="min_particles" value="10"/>
-    <param name="max_particles" value="5000"/>
+    <param name="update_min_a" value="0.0872665"/>
+    <param name="min_particles" value="20"/>
+    <param name="max_particles" value="100"/>
     <param name="use_map_topic" value="false"/>
     <param name="laser_min_range" value="-1"/>
     <param name="laser_max_range" value="-1"/>
