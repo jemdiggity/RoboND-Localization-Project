@@ -39,7 +39,7 @@ Robot, IEEEtran, Udacity, \LaTeX, Localization.
 \section{Introduction}
 \label{sec:introduction}
 
-\IEEEPARstart{T}{he} project is an exercise in defining robots within ROS, but more importantly, an exercise is localization. Localization is a key topic in robotics and important for student understanding. While there are several types of localization problems, this project deals with localization when the map is known but the location must be determined using sensors.
+\IEEEPARstart{T}{he} project is an exercise in defining robots within ROS, but more importantly, an exercise is localization. Localization is a key topic in robotics and important for student understanding. Localization is the problem of determining where a subject is within a frame of reference. While there are several types of localization problems, this project deals with localization when the map is known but the location must be determined using sensors. To solve the localization problem a technique known as adaptive monte carlo localize will be emloyed. This technique is a particle filter that dynamically adjusts the number of particles in order to improve computation efficiency when the location is confidently known.
 
 \section{Background}
 As per the project instructions, Adaptive Monte Carlo Localization module in ROS was used as well as the ROS Navigation stack.
@@ -54,8 +54,10 @@ A particle filter consists of two stages: a transformation/measurement stage and
 
 After several cycles, the particles converge on the estimated location.
 
+This is the basis of AMCL.
+
 \subsection{Comparison / Contrast}
-MCL is easy to implement, is not restricted to Gaussian sensor noise, and is more flexible in terms of computational resources.
+MCL is easy to implement, is not restricted to Gaussian sensor noise, and is more flexible in terms of computational resources than a Kalman filter.
 
 \section{Simulations}
 Both the benchmark robot and the personal robot reached the navigation goals successfully using the same parameters. 
@@ -96,16 +98,101 @@ The command to launch the student robot world is:
 roslaunch udacity_bot my_world.launch
 \end{lstlisting}
 
-For tuning both the costmap and the navigiation stack, the ROS documentation at the following URIs were used:
+\begin{table}[h]
+\caption{AMCL Parameters}
+\label{table_example}
+\begin{center}
+\begin{tabular}{|c|c|}
+\hline
+transform\_tolerance & 1.0\\
+\hline
+update\_min\_d & 0.1\\
+\hline
+update\_min\_a & 0.0872665\\
+\hline
+min\_particles & 20\\
+\hline
+max\_particles & 100\\
+\hline
+laser\_min\_range & -1\\
+\hline
+laser\_max\_range & -1\\
+\hline
+laser\_max\_beams & 30\\
+\hline
+laser\_z\_hit & 0.95\\
+\hline
+laser\_z\_rand & 0.05\\
+\hline
+odom\_alpha & 0.2\\
+\hline
+\end{tabular}
+\end{center}
+\end{table}
 
-\url{http://wiki.ros.org/costmap\_2d}
+\begin{table}[h]
+\caption{Common Costmap Parameters}
+\label{table_example}
+\begin{center}
+\begin{tabular}{|c|c|}
+\hline
+obstacle\_range & 2.5\\
+\hline
+raytrace\_range & 3.0\\
+\hline
+transform\_tolerance & 0.2\\
+\hline
+inflation\_radius & 0.55\\
+\hline
+\hline
+\end{tabular}
+\end{center}
+\end{table}
 
-\url{http://wiki.ros.org/navigation/Tutorials/RobotSetup}
+\begin{table}[h]
+\caption{Local Costmap Parameters}
+\label{table_example}
+\begin{center}
+\begin{tabular}{|c|c|}
+\hline
+update\_frequency & 40\\
+\hline
+publish\_frequency & 40\\
+\hline
+width & 6.0\\
+\hline
+height & 6.0\\
+\hline
+resolution & 0.05\\
+\hline
+\hline
+\end{tabular}
+\end{center}
+\end{table}
 
-The tuning parameters found in the documentation examples were used and found to be sufficient. Specifically, the update rate was lowered to 5 fps, the size of the local costmap was significantly reduced to 6x6, and the obstacle and raytrace range were set to the defaults of 2.5 and 3.0, respectively. The inflation radius was also set to 0.55 as per the example and proved to large enough that the robot would not become stuck on the wall but could still fit through narrow passages.
-
+\begin{table}[h]
+\caption{Global Costmap Parameters}
+\label{table_example}
+\begin{center}
+\begin{tabular}{|c|c|}
+\hline
+update\_frequency & 5\\
+\hline
+publish\_frequency & 5\\
+\hline
+width & 40\\
+\hline
+height & 40\\
+\hline
+resolution & 0.05\\
+\hline
+\hline
+\end{tabular}
+\end{center}
+\end{table}
+      
 \subsection{Achievements}
-Both models were able to navigate to the goal successfully.
+Both models were able to navigate to the goal successfully. The benchmark model reached the goal in 66 seconds. The personal robot was approximately twice as slow.
 
 % Robot Models
 \subsection{Benchmark Model}
@@ -144,10 +231,25 @@ Topics (brief):
 \end {itemize}
 
 \subsubsection{Parameters}
-As mentioned previously the costmap parameters were the same as the ROS tutorial example. The main parameters to change were reducing the local costmap size as opposed to the global map. Setting an inflation value so that the robot would not get stuck on the wall.
-The AMCL parameters were also default parameters from
-\url{http://wiki.ros.org/amcl}
-. Only the tranform\_tolerance was increased to allow for delayed processing of the simulation.
+For tuning both the costmap and the navigiation stack, the ROS documentation at the following URIs were used:
+
+\url{http://wiki.ros.org/costmap\_2d}
+
+\url{http://wiki.ros.org/navigation/Tutorials/RobotSetup}
+
+The tuning parameters were set to the documentation defaults as a starting point and then modified to increase performance.
+
+The update rate for the local costmap was set to 40 Hz which is the same frequency as the laserscanner. The size of the map was significantly reduced (6x6) to limit computation time. The global map, which does not change, was set to update at 5 Hz. A local costmap smaller than 3x3 was found to be insufficient for navigation. In order to make the robot responsive when turning, the update\_min\_a was reduced to 5 degrees so it would perform filter updates more frequently.
+
+The obstacle and raytrace range were set to the defaults of 2.5 and 3.0, respectively. As long as the raytrace range was set higher than the obstacle range, the robot was able to navigate.
+
+The inflation radius was also set to 0.55 as per the example and proved to large enough that the robot would not become stuck on the wall but could still fit through narrow passages.
+
+The number of particles was dramatically reduced as little as 20 particles could be used to successfully reach the navigation goal.
+
+The transform tolerance was increased to allow delays in processing.
+
+The parameters related to the laser scanner were left to defaults. Changing the number of beams did not make an observable difference to performance. Reducing the maximum range made localization worse. Adjusting laser\_hit and laser\_rand within a fairly wide range did not impact performance as well.
 
 \subsection{Personal Model}
 % ditto
@@ -163,7 +265,7 @@ The robot meets the performance objective as it is only to reach the goal. No ti
 
 The particle filter converges within a few second for the benchmark. The personal robot has a subjectively slightly worse localization. This is believed to be due to the non-smooth, jerky motion of the robot. The simulator causes jerky motion when in the physical world this would not happen.
 
-In either case, the robot reaches the goal in under 30 seconds. There is a tendency for the robots to perform an "Austin Powers" manoeuvre where it goes back and forward between the two walls of corridor instead of heading straight down.
+In either case, the robot reaches the goal in about 1 minute. There is a tendency for the robots to perform an "Austin Powers" manoeuvre where it goes back and forward between the two walls of corridor instead of heading straight down.
 
 \subsection{Localization Results}
 \subsubsection{Benchmark}
@@ -221,10 +323,4 @@ Mechanical construction, motors \& motor controllers, power supply and battery m
 \item Computation time/resource considerations?
 There is a tradeoff in robot responsiveness (how fast it can process the update loop) and processing power.
 \end{enumerate}
-
-
-
-\bibliography{bib}
-\bibliographystyle{ieeetr}
-
 \end{document}
